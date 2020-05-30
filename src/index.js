@@ -1,9 +1,13 @@
 import CanvasHelper from "../libs/canvas-helper";
 import PixelProcessor from "../libs/pixel-processor";
 import * as Tools2D from "../libs/tools2d";
+import {create, all} from 'mathjs'
 
-
-let CANVAS;
+const config = {
+    number: 'BigNumber',
+    precision: 64
+};
+const math = create(all, config);
 
 class Mandelbrot {
     constructor() {
@@ -21,6 +25,10 @@ class Mandelbrot {
                 b: 0
             });
         }
+    }
+
+    num(x) {
+        return math.bignumber(x);
     }
 
     get width () {
@@ -44,7 +52,7 @@ class Mandelbrot {
     }
 
     set zoom(value) {
-        this._magnificationFactor = value;
+        this._magnificationFactor = this.num(value);
     }
 
     get x() {
@@ -52,7 +60,7 @@ class Mandelbrot {
     }
 
     set x(value) {
-        this._xPan = value;
+        this._xPan = this.num(value);
     }
 
     get y() {
@@ -60,7 +68,7 @@ class Mandelbrot {
     }
 
     set y(value) {
-        this._yPan = value;
+        this._yPan = this.num(value);
     }
 
     get canvas () {
@@ -73,23 +81,28 @@ class Mandelbrot {
     }
 
     checkIfBelongsToMandelbrotSet(x, y) {
-        let realComponentOfResult = x;
-        let imaginaryComponentOfResult = y;
+        let rcRes = x;
+        let icRes = y;
+        const bn2 = this.num(2);
+        const bn5 = this.num(5);
 
         const nMax = this._maxIterations;
         for (let i = 0; i < nMax; ++i) {
             // Calculate the real and imaginary components of the result
             // separately
-            let tempRealComponent = realComponentOfResult * realComponentOfResult
-                - imaginaryComponentOfResult * imaginaryComponentOfResult
-                + x;
 
-            let tempImaginaryComponent = 2 * realComponentOfResult * imaginaryComponentOfResult
-                + y;
+            let rcRes2 = math.square(rcRes);
+            let icRes2 = math.square(icRes);
 
-            realComponentOfResult = tempRealComponent;
-            imaginaryComponentOfResult = tempImaginaryComponent;
-            if (realComponentOfResult * imaginaryComponentOfResult > 5) {
+            // let rcTmp = rcRes * rcRes - icRes * icRes + x;
+            let rcTmp = math.add(math.subtract(rcRes2, icRes2), x);
+
+            // let icTmp = 2 * rcRes * icRes + y;
+            let icTmp = math.add(math.multiply(bn2, rcRes, icRes), y);
+
+            rcRes = rcTmp;
+            icRes = icTmp;
+            if (math.number(math.multiply(rcRes, icRes)) > 5) {
                 return i / nMax * 255;
             }
         }
@@ -103,10 +116,27 @@ class Mandelbrot {
         const panY = this._yPan;
         const height = this.height;
         const width = this.width;
+        const h2 = math.divide(this.num(height), this.num(2));
+        const w2 = math.divide(this.num(width), this.num(2));
         for (let y = 0; y < height; ++y) {
-            const yf = (y - height / 2) / magnificationFactor - panY;
+            console.log(y)
+            const bny = this.num(y);
+            const yf = math.subtract(
+                math.divide(
+                    math.subtract(bny, h2),
+                    magnificationFactor
+                ), panY
+            );
+            // (y - height / 2) / magnificationFactor - panY;
             for (let x = 0; x < width; ++x) {
-                const xf = (x - width / 2) / magnificationFactor - panX;
+                const bnx = this.num(x);
+                const xf = math.subtract(
+                    math.divide(
+                        math.subtract(bnx, w2),
+                        magnificationFactor
+                    ), panX
+                );
+                // const xf = (x - width / 2) / magnificationFactor - panX;
                 pixels[y][x] = this.checkIfBelongsToMandelbrotSet(xf, yf) | 0;
             }
         }
@@ -145,7 +175,7 @@ class Mandelbrot {
 
 
 function main() {
-    CANVAS = CanvasHelper.createCanvas(400, 400);
+    const CANVAS = CanvasHelper.createCanvas(400, 400);
     const mb = new Mandelbrot();
     mb.zoom = 200;
     mb.iterations = 100;
