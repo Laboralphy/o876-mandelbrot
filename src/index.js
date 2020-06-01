@@ -7,44 +7,76 @@ let CANVAS;
 
 class Mandelbrot {
     constructor() {
-        this._canvas = null;
-        this._pixels = null;
-        this._maxIterations = 100;
-        this._magnificationFactor = 200;
+        this._pixels = [];
+        this._iterationCount = 100;
+        this._zoom = 200;
         this._xPan = 2;
         this._yPan = 1.5;
-        this._palette = [];
-        for (let i = 0; i < 256; ++i) {
-            this._palette.push({
-                r: i,
-                g: 0,
-                b: 0
-            });
-        }
+        this._width = 0;
+        this._height = 0;
+        this._region = {x: 0, y: 0, width: 0, height: 0};
+    }
+
+    get pixels() {
+        return this._pixels;
     }
 
     get width () {
-        return this._canvas.width;
+        return this._width;
     }
 
     get height () {
-        return this._canvas.height;
+        return this._height;
+    }
+
+    set width(value) {
+        this._width = value;
+    }
+
+    set height(value) {
+        this._height = value;
     }
 
     get iterations() {
-        return this._maxIterations;
+        return this._iterationCount;
     }
 
     set iterations(value) {
-        this._maxIterations = parseInt(value);
+        this._iterationCount = parseInt(value);
     }
 
     get zoom() {
-        return this._magnificationFactor;
+        return this._zoom;
     }
 
     set zoom(value) {
-        this._magnificationFactor = value;
+        this._zoom = value;
+    }
+
+    set region({x, y, width, height}) {
+        if (x < 0) {
+            width += x;
+            x = 0;
+        }
+        if ((x + width) > this._width) {
+            width = this._width - x;
+        }
+        if (y < 0) {
+            height += y;
+            y = 0;
+        }
+        if ((x + width) > this._width) {
+            width = this._width - x;
+        }
+        this._pixels = Tools2D.createArray2D(width, height, 0, Uint8Array);
+        this._region.x = x;
+        this._region.y = y;
+        this._region.width = width;
+        this._region.height = height;
+    }
+
+    get region() {
+        return this._region;
     }
 
     get x() {
@@ -63,33 +95,16 @@ class Mandelbrot {
         this._yPan = value;
     }
 
-    get canvas () {
-        return this._canvas;
-    }
-
-    set canvas (value) {
-        this._canvas = value;
-        this._pixels = Tools2D.createArray2D(value.width, value.height, 0, Uint8Array);
-    }
-
-    checkIfBelongsToMandelbrotSet(x, y) {
-        let realComponentOfResult = x;
-        let imaginaryComponentOfResult = y;
-
-        const nMax = this._maxIterations;
+    mandelbrotFunc(x, y) {
+        let rcResult = x;
+        let icResult = y;
+        const nMax = this._iterationCount;
         for (let i = 0; i < nMax; ++i) {
-            // Calculate the real and imaginary components of the result
-            // separately
-            let tempRealComponent = realComponentOfResult * realComponentOfResult
-                - imaginaryComponentOfResult * imaginaryComponentOfResult
-                + x;
-
-            let tempImaginaryComponent = 2 * realComponentOfResult * imaginaryComponentOfResult
-                + y;
-
-            realComponentOfResult = tempRealComponent;
-            imaginaryComponentOfResult = tempImaginaryComponent;
-            if (realComponentOfResult * imaginaryComponentOfResult > 5) {
+            let rcTmp = rcResult * rcResult - icResult * icResult + x;
+            let icTmp = 2 * rcResult * icResult + y;
+            rcResult = rcTmp;
+            icResult = icTmp;
+            if (rcResult * icResult > 5) {
                 return i / nMax * 255;
             }
         }
@@ -98,89 +113,102 @@ class Mandelbrot {
 
     compute() {
         const pixels = this._pixels;
-        const magnificationFactor = this._magnificationFactor;
+        const zoom = this._zoom;
         const panX = this._xPan;
         const panY = this._yPan;
         const height = this.height;
         const width = this.width;
-        for (let y = 0; y < height; ++y) {
-            const yf = (y - height / 2) / magnificationFactor - panY;
-            for (let x = 0; x < width; ++x) {
-                const xf = (x - width / 2) / magnificationFactor - panX;
-                pixels[y][x] = this.checkIfBelongsToMandelbrotSet(xf, yf) | 0;
+        const h2 = height / 2;
+        const w2 = width / 2;
+        const region = this._region;
+        let xReg = region.x;
+        let wReg = region.width;
+        let yReg = region.y;
+        let hReg = region.height;
+        if (xReg < 0) {
+            wReg += xReg;
+            xReg = 0;
+        }
+        if ((xReg + wReg) > width) {
+            wReg = width - xReg;
+        }
+        if (yReg < 0) {
+            hReg += yReg;
+            yReg = 0;
+        }
+        if ((xReg + wReg) > width) {
+            wReg = width - xReg;
+        }
+        for (let y = 0; y < hReg; ++y) {
+            const yf = (yReg + y - h2) / zoom - panY;
+            for (let x = 0; x < wReg; ++x) {
+                const xf = (xReg + x - w2) / zoom - panX;
+                pixels[y][x] = this.mandelbrotFunc(xf, yf) | 0;
             }
         }
     }
+}
 
-    render() {
-        const pixels = this._pixels;
-        const w = this.width;
-        const h = this.height;
-        const w2 = w >> 1;
-        const wl = w2 - (w2 >> 1);
-        const wh = w2 + (w2 >> 1);
-        const h2 = h >> 1;
-        const hl = h2 - (h2 >> 1);
-        const hh = h2 + (h2 >> 1);
-        const pal = this._palette;
-        PixelProcessor.process(this._canvas, function(pctx) {
-            const x = pctx.x;
-            const y = pctx.y;
-            if (x > wl && x < wh & y > hl && y < hh && (x === w2 || y === h2)) {
-                pctx.color.r = 255;
-                pctx.color.g = 255;
-                pctx.color.b = 255;
-            } else {
-                const mbColor = pal[pixels[pctx.y][pctx.x]];
-                if (mbColor === undefined) throw new Error('color undefined ' + pixels[pctx.y][pctx.x])
-                pctx.color.r = mbColor.r;
-                pctx.color.g = mbColor.g;
-                pctx.color.b = mbColor.b;
-            }
-            pctx.color.a = 255;
-        });
-    }
+function renderPixels(canvas, region, pixels, palette) {
+    PixelProcessor.process(canvas, function(pctx) {
+        const mbColor = palette[pixels[pctx.y][pctx.x]];
+        pctx.color.r = mbColor.r;
+        pctx.color.g = mbColor.g;
+        pctx.color.b = mbColor.b;
+        pctx.color.a = 255;
+    });
 }
 
 
-
 function main() {
-    CANVAS = CanvasHelper.createCanvas(400, 400);
+    const palette = [];
+    for (let i = 0; i < 256; ++i) {
+        palette.push({
+            r: i,
+            g: 0,
+            b: 0
+        });
+    }
+    CANVAS = CanvasHelper.createCanvas(600, 400);
     const mb = new Mandelbrot();
     mb.zoom = 200;
     mb.iterations = 100;
     mb.x = 0;
     mb.y = 0;
-    mb.canvas = CANVAS;
+    mb.width = CANVAS.width;
+    mb.height = CANVAS.height;
+    mb.region = {x: 0, y: 0, width: CANVAS.width / 2, height:CANVAS.height / 2};
 
     function go() {
-        console.log('x', mb.x, 'y', mb.y, 'zoom', mb.zoom);
+        console.time('mandelbrot');
         mb.compute();
-        mb.render();
+        // mb.compute();
+        renderPixels(CANVAS, mb.region, mb.pixels, palette);
+        console.timeEnd('mandelbrot');
+        console.log('x', mb.x, 'y', mb.y, 'zoom', mb.zoom, 'iter', mb.iterations);
     }
 
     go();
 
     window.addEventListener('keydown', event => {
-        const z = event.shiftKey ? 10000 : 1000;
         switch (event.key) {
             case 'ArrowUp':
-                mb.y -= mb.height / (mb.zoom * 10);
-                go();
-                break;
-
-            case 'ArrowDown':
                 mb.y += mb.height / (mb.zoom * 10);
                 go();
                 break;
 
+            case 'ArrowDown':
+                mb.y -= mb.height / (mb.zoom * 10);
+                go();
+                break;
+
             case 'ArrowLeft':
-                mb.x -= mb.width / (mb.zoom * 10);
+                mb.x += mb.width / (mb.zoom * 10);
                 go();
                 break;
 
             case 'ArrowRight':
-                mb.x += mb.width / (mb.zoom * 10);
+                mb.x -= mb.width / (mb.zoom * 10);
                 go();
                 break;
 
