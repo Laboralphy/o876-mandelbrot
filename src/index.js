@@ -17,8 +17,10 @@ function buildPalette() {
 }
 
 function render(canvas, mandel, palette) {
-    console.time('mandelbrot');
+    console.time('mandelbrot-compute');
     mandel.compute();
+    console.timeEnd('mandelbrot-compute');
+    console.time('mandelbrot-render');
     const pixels = mandel.pixels;
     PixelProcessor.process(canvas, function(pctx) {
         const mbColor = palette[pixels[pctx.y][pctx.x]];
@@ -27,7 +29,7 @@ function render(canvas, mandel, palette) {
         pctx.color.b = mbColor.b;
         pctx.color.a = 255;
     }, mandel.region);
-    console.timeEnd('mandelbrot');
+    console.timeEnd('mandelbrot-render');
     console.log('x', mandel.x, 'y', mandel.y, 'zoom', mandel.zoom, 'iter', mandel.iterations);
 }
 

@@ -56,6 +56,7 @@ class PixelProcessor {
      * @param region {Region}
      */
     static process(oCanvas, cb, region = undefined) {
+        console.time('process-start');
         let ctx = oCanvas.getContext('2d');
         let oImageData = ctx.createImageData(oCanvas.width, oCanvas.height);
         let pixels = new Uint32Array(oImageData.data.buffer);
@@ -88,7 +89,10 @@ class PixelProcessor {
             }
         };
         let aColors = [];
+        const pcolor = oPixelCtx.color;
         const {x: xReg, y: yReg, width: wReg, height: hReg} = PixelProcessor.fit(w, h, region);
+        console.timeEnd('process-start');
+        console.time('process-iter');
         for (let iy = 0; iy < hReg; ++iy) {
             const y = iy + yReg;
             for (let ix = 0; ix < wReg; ++ix) {
@@ -97,21 +101,31 @@ class PixelProcessor {
 				let p = pixels[nOffset];
                 oPixelCtx.x = x;
                 oPixelCtx.y = y;
-                oPixelCtx.color.r = p && 0xFF;
-                oPixelCtx.color.g = (p >> 8) && 0xFF;
-                oPixelCtx.color.b = (p >> 16) && 0xFF;
-                oPixelCtx.color.a = (p >> 24) && 0xFF;
+                pcolor.r = p && 0xFF;
+                pcolor.g = (p >> 8) && 0xFF;
+                pcolor.b = (p >> 16) && 0xFF;
+                pcolor.a = (p >> 24) && 0xFF;
                 cb(oPixelCtx);
                 if (!oPixelCtx.color) {
                     throw new Error('pixelprocessor : callback destroyed the color');
                 }
-                aColors.push({offset: nOffset, color: {...oPixelCtx.color}});
+                aColors.push({
+                    offset: nOffset,
+                    r: pcolor.r,
+                    g: pcolor.g,
+                    b: pcolor.b,
+                    a: pcolor.a
+                });
+                //aColors.push({offset: nOffset, color: {...oPixelCtx.color}});
             }
         }
-        aColors.forEach(({offset, color}) => {
-            pixels[offset] = color.r | (color.g << 8) | (color.b << 16) | (color.a << 24);
+        console.timeEnd('process-iter');
+        console.time('process-fill');
+        aColors.forEach(({offset, r, g, b, a}) => {
+            pixels[offset] = r | (g << 8) | (b << 16) | (a << 24);
         });
         ctx.putImageData(oImageData, 0, 0);
+        console.timeEnd('process-fill');
     }
 }
 
