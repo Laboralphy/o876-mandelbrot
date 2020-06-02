@@ -42,7 +42,12 @@ function main() {
     mb.width = CANVAS.width;
     mb.height = CANVAS.height;
     mb.region = {x: 0, y: 0, width: CANVAS.width, height:CANVAS.height};
-    render(CANVAS, mb, palette);
+
+    function go() {
+        render(CANVAS, mb, palette);
+    }
+
+    go();
 
     window.addEventListener('keydown', event => {
         switch (event.key) {
