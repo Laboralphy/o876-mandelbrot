@@ -1,11 +1,70 @@
+/**
+ * @typedef {{x: number, width: number, y: number, height: number}} Region
+ */
 class PixelProcessor {
 
-    static process(oCanvas, cb) {
+    /**
+     * Create a new region that fit inside the given canvas dimensions
+     * @param width {number}
+     * @param height {number}
+     * @param region {Region}
+     * @return {Region}
+     */
+    static fit(width, height, region) {
+        let xReg = region.x;
+        let wReg = region.width;
+        let yReg = region.y;
+        let hReg = region.height;
+        if (xReg < 0) {
+            wReg += xReg;
+            xReg = 0;
+        }
+        if ((xReg + wReg) > width) {
+            wReg = width - xReg;
+        }
+        if (yReg < 0) {
+            hReg += yReg;
+            yReg = 0;
+        }
+        if ((xReg + wReg) > width) {
+            wReg = width - xReg;
+        }
+        return {
+            x: xReg,
+            y: yReg,
+            width: wReg,
+            height: hReg
+        };
+    }
+
+    /**
+     *
+     * @param oCanvas {HTMLCanvasElement}
+     * @param cb {function({
+     *  width: number,
+     *  height: number,
+     *  x: number,
+     *  y: number,
+     *  color: {
+     *      r: number,
+     *      g: number,
+     *      b: number,
+     *      a: number
+     *  },
+     *  pixel: function(x: number, y: number)
+     *  })} callback
+     * @param region {Region}
+     */
+    static process(oCanvas, cb, region = undefined) {
         let ctx = oCanvas.getContext('2d');
         let oImageData = ctx.createImageData(oCanvas.width, oCanvas.height);
         let pixels = new Uint32Array(oImageData.data.buffer);
         let h = oCanvas.height;
         let w = oCanvas.width;
+        if (region === undefined) {
+            region = {x: 0, y: 0, width: w, height: h};
+        }
+        region = PixelProcessor.fit(w, h, region);
         let oPixelCtx = {
             pixel: (x, y) => {
                 let nOffset = y * w + x;
@@ -29,8 +88,11 @@ class PixelProcessor {
             }
         };
         let aColors = [];
-        for (let y = 0; y < h; ++y) {
-            for (let x = 0; x < w; ++x) {
+        const {x: xReg, y: yReg, width: wReg, height: hReg} = PixelProcessor.fit(w, h, region);
+        for (let iy = 0; iy < hReg; ++iy) {
+            const y = iy + yReg;
+            for (let ix = 0; ix < wReg; ++ix) {
+                const x = ix + xReg;
                 let nOffset = y * w + x;
 				let p = pixels[nOffset];
                 oPixelCtx.x = x;
@@ -43,11 +105,11 @@ class PixelProcessor {
                 if (!oPixelCtx.color) {
                     throw new Error('pixelprocessor : callback destroyed the color');
                 }
-                aColors.push({...oPixelCtx.color});
+                aColors.push({offset: nOffset, color: {...oPixelCtx.color}});
             }
         }
-        aColors.forEach((c, i) => {
-            pixels[i] = c.r | (c.g << 8) | (c.b << 16) | (c.a << 24);
+        aColors.forEach(({offset, color}) => {
+            pixels[offset] = color.r | (color.g << 8) | (color.b << 16) | (color.a << 24);
         });
         ctx.putImageData(oImageData, 0, 0);
     }
