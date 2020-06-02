@@ -1,14 +1,11 @@
 class PixelProcessor {
 
-    static process(oCanvas, cb, oRegion = null) {
+    static process(oCanvas, cb) {
         let ctx = oCanvas.getContext('2d');
         let oImageData = ctx.createImageData(oCanvas.width, oCanvas.height);
         let pixels = new Uint32Array(oImageData.data.buffer);
         let h = oCanvas.height;
         let w = oCanvas.width;
-        if (!oRegion) {
-            oRegion = {x: 0, y: 0, width: w, height: h};
-        }
         let oPixelCtx = {
             pixel: (x, y) => {
                 let nOffset = y * w + x;
@@ -32,7 +29,6 @@ class PixelProcessor {
             }
         };
         let aColors = [];
-        const wReg = oRegionsl
         for (let y = 0; y < h; ++y) {
             for (let x = 0; x < w; ++x) {
                 let nOffset = y * w + x;

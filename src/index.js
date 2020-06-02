@@ -177,7 +177,7 @@ function main() {
     mb.y = 0;
     mb.width = CANVAS.width;
     mb.height = CANVAS.height;
-    mb.region = {x: 0, y: 0, width: CANVAS.width / 2, height:CANVAS.height / 2};
+    mb.region = {x: 0, y: 0, width: CANVAS.width, height:CANVAS.height};
 
     function go() {
         console.time('mandelbrot');
