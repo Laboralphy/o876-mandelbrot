@@ -32,7 +32,7 @@ class PixelProcessor {
             }
         };
         let aColors = [];
-        const wReg = oRegionsl
+        console.log('width', w, 'height', h)
         for (let y = 0; y < h; ++y) {
             for (let x = 0; x < w; ++x) {
                 let nOffset = y * w + x;

@@ -68,6 +68,7 @@ class Mandelbrot {
         if ((x + width) > this._width) {
             width = this._width - x;
         }
+        console.log('creating pixels', width, height)
         this._pixels = Tools2D.createArray2D(width, height, 0, Uint8Array);
         this._region.x = x;
         this._region.y = y;
@@ -152,6 +153,12 @@ class Mandelbrot {
 function renderPixels(canvas, region, pixels, palette) {
     PixelProcessor.process(canvas, function(pctx) {
         const mbColor = palette[pixels[pctx.y][pctx.x]];
+        if (!mbColor) {
+            console.log('pixels row count:', pixels.length)
+            console.log('pixels col count:', pixels[0].length)
+            console.error('This color palette entry does not exists ' + pctx.y + ':' + pctx.x)
+            throw new Error('ERR_OUTBOUND')
+        }
         pctx.color.r = mbColor.r;
         pctx.color.g = mbColor.g;
         pctx.color.b = mbColor.b;
@@ -177,7 +184,7 @@ function main() {
     mb.y = 0;
     mb.width = CANVAS.width;
     mb.height = CANVAS.height;
-    mb.region = {x: 0, y: 0, width: CANVAS.width / 2, height:CANVAS.height / 2};
+    mb.region = {x: 0, y: 0, width: CANVAS.width, height:CANVAS.height};
 
     function go() {
         console.time('mandelbrot');
